@@ -1,19 +1,16 @@
-ARG ARCH=
-ARG IMAGE_BASE=20-alpine
+FROM node:22-alpine
 
-FROM ${ARCH}node:$IMAGE_BASE
-LABEL Name="Node.js Demo App" Version=4.9.9
-LABEL org.opencontainers.image.source = "https://github.com/benc-uk/nodejs-demoapp"
-ENV NODE_ENV production
-WORKDIR /app 
+LABEL Name="Node.js Demo App" Version="4.9.9"
+LABEL org.opencontainers.image.source="https://github.com/wai-AI/nodejs-demoapp"
+ENV NODE_ENV=production PORT=3000
+WORKDIR /app
 
-# For Docker layer caching do this BEFORE copying in rest of app
-COPY src/package*.json ./
-RUN npm install --production --silent
+COPY --chown=node:node src/package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY --chown=node:node src/. .
 
-# NPM is done, now copy in the rest of the project to the workdir
-COPY src/. .
-
-# Port 3000 for our Express server 
+USER node
 EXPOSE 3000
-ENTRYPOINT ["npm", "start"]
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz',r=>{r.resume();process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
+CMD ["node", "--expose_gc", "server.mjs"]

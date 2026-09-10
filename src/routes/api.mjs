@@ -10,6 +10,7 @@ import os from 'os'
 import fs from 'fs'
 import axios from 'axios'
 import appInsights from 'applicationinsights'
+import { containerMemory } from '../lib/container-memory.mjs'
 
 // =======================================================================
 // Get weather data as JSON
@@ -65,15 +66,7 @@ router.get('/api/monitoringdata', async function (req, res, next) {
     if (fs.existsSync('/.dockerenv')) {
       data.container = true
 
-      // Read cgroup container memory info
-      data.memUsedBytes = parseInt(fs.readFileSync('/sys/fs/cgroup/memory/memory.usage_in_bytes', 'utf8'))
-      data.memTotalBytes = parseInt(fs.readFileSync('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'utf8'))
-
-      // limit_in_bytes might not be set, in which case it contains some HUGE number
-      // Fall back to using os.totalmem()
-      if (data.memTotalBytes > 90000000000000) {
-        data.memTotalBytes = os.totalmem()
-      }
+      Object.assign(data, containerMemory())
     } else {
       data.free = os.freemem()
       data.memUsedBytes = os.totalmem() - os.freemem()

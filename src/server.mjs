@@ -36,6 +36,9 @@ import { readFileSync } from 'fs'
 
 const app = new express()
 
+// A cheap health check, independent of templates, sessions and optional APIs.
+app.get('/healthz', (_req, res) => res.status(200).json({ status: 'ok' }))
+
 // View engine setup, static content & session
 const __dirname = path.resolve()
 app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'todo')])
@@ -147,7 +150,23 @@ app.use(function (err, req, res, next) {
 const port = process.env.PORT || 3000
 
 // Start the server
-app.listen(port)
+const server = app.listen(port, '0.0.0.0')
+// Keep backend connections alive longer than the ALB's 60-second idle timeout.
+server.keepAliveTimeout = 65000
+server.headersTimeout = 66000
+
+// Drain in-flight requests when Docker stops the container.
+let shuttingDown = false
+function shutdown(signal) {
+  if (shuttingDown) return
+  shuttingDown = true
+  console.log(`### ${signal}: draining HTTP connections`)
+  server.close(() => process.exit(0))
+  server.closeIdleConnections()
+  setTimeout(() => process.exit(1), 30000).unref()
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
 console.log(`### 🌐 Server listening on port ${port}`)
 
 export default app

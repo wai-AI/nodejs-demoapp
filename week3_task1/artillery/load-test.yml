@@ -1,0 +1,30 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: Warm up
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 20
+      name: Ramp up
+    - duration: 120
+      arrivalRate: 20
+      name: Steady traffic
+  plugins:
+    expect: {}
+    ensure:
+      conditions:
+        - expression: "vusers.completed / vusers.created >= 0.99"
+        - expression: "http.codes.200 == http.responses"
+scenarios:
+  - name: Application and readiness
+    flow:
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/healthz"
+          expect:
+            - statusCode: 200

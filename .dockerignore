@@ -13,3 +13,6 @@ LICENSE
 **/mochawesome-report/
 **/node_modules
 **/tests/*
+
+# Ignore accidental nested repository clones in the Docker build context.
+/nodejs-demoapp/
